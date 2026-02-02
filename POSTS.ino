@@ -1,4 +1,6 @@
+#ifdef POST_TELEGRAM
 #include "./../../_secrets/posts.h"
+#endif
 
 void PostTelegram() {
 #ifdef POST_TELEGRAM

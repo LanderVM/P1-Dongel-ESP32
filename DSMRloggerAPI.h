@@ -1,34 +1,48 @@
-    /*
-***************************************************************************  
-**  Program  : DSMRloggerAPI.h - definitions for DSMRloggerAPI
-**
-**  Copyright (c) 2023 Martijn Hendriks / based on DSMR Api Willem Aandewiel
-**
-**  TERMS OF USE: MIT License. See bottom of file.                                                            
-***************************************************************************      
-*/  
+/*
+ ***************************************************************************
+ **  Program  : DSMRloggerAPI.h - definitions for DSMRloggerAPI
+ **
+ **  Copyright (c) 2023 Martijn Hendriks / based on DSMR Api Willem Aandewiel
+ **
+ **  TERMS OF USE: MIT License. See bottom of file.
+ ***************************************************************************
+ */
 #ifndef _DSMRAPI_H
 #define _DSMRAPI_H
 
 // SDK 3.x.x
 #if ARDUINO_USB_CDC_ON_BOOT
-  #define USBSerial HWCDCSerial
+#define USBSerial HWCDCSerial
 #else
-  HWCDC USBSerial;
+HWCDC USBSerial;
 #endif
 
 #include "version.h" //first of all
 #include "Config.h"
 
-// water sensor
-volatile float       WtrFactor      = 1;
-volatile time_t      WtrTimeBetween = 0;
-volatile byte        debounces      = 0;
-volatile time_t      WtrPrevReading = 0;
-bool                 WtrMtr         = false;
-#define              DEBOUNCETIMER 1700
+// Provide safe defaults when hardware/profile headers do not define these
+#ifndef OTAURL
+#define OTAURL ""
+#endif
 
-struct {
+#ifndef OTAURL_PREFIX
+#define OTAURL_PREFIX ""
+#endif
+
+#ifndef _HOTSPOT
+#define _HOTSPOT _DEFAULT_HOSTNAME
+#endif
+
+// water sensor
+volatile float WtrFactor = 1;
+volatile time_t WtrTimeBetween = 0;
+volatile byte debounces = 0;
+volatile time_t WtrPrevReading = 0;
+bool WtrMtr = false;
+#define DEBOUNCETIMER 1700
+
+struct
+{
   // uint8_t map = 0; = SelMap TODO
   uint8_t id = 1;
   uint16_t baud = 9600;
@@ -36,34 +50,34 @@ struct {
   uint16_t port = 502;
 } mb_config;
 
-#include <WiFi.h>  
+#include <WiFi.h>
 #include "Insights.h"
-#include <WiFiClientSecure.h>        
+#include <WiFiClientSecure.h>
 #include <WebServer.h>
-#include <TimeLib.h>            // https://github.com/PaulStoffregen/Time
-#include <TelnetStream.h>       // https://github.com/jandrassy/TelnetStream
+#include <TimeLib.h>      // https://github.com/PaulStoffregen/Time
+#include <TelnetStream.h> // https://github.com/jandrassy/TelnetStream
 #include "safeTimers.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
-#include <dsmr2.h>               // https://github.com/mhendriks/dsmr2Lib
+#include <dsmr2.h> // https://github.com/mhendriks/dsmr2Lib
 #include "esp_chip_info.h"
-#include <esp_now.h>             //https://randomnerdtutorials.com/esp-now-auto-pairing-esp32-esp8266/
+#include <esp_now.h> //https://randomnerdtutorials.com/esp-now-auto-pairing-esp32-esp8266/
 #include <esp_task_wdt.h>
 
 JsonDocument StroomPlanData;
 
 #ifdef MBUS
-  #include "ModbusServerWiFi.h"
+#include "ModbusServerWiFi.h"
 #endif
 
-#define JSON_BUFF_MAX     255
-#define MQTT_BUFF_MAX     1024
-#define MQTT_RECONNECT_DEFAULT_TIME 10 //seconds
+#define JSON_BUFF_MAX 255
+#define MQTT_BUFF_MAX 1024
+#define MQTT_RECONNECT_DEFAULT_TIME 10 // seconds
 
-P1Reader    slimmeMeter(&Serial1, DTR_IO);
+P1Reader slimmeMeter(&Serial1, DTR_IO);
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 
-void LogFile(const char* payload, bool toDebug = false);
+void LogFile(const char *payload, bool toDebug = false);
 void P1Reboot();
 void SendTariffData();
 void EID_RESTART_IDLE_TIMER();
@@ -77,167 +91,245 @@ IPAddress staticIP, gateway, subnet, dns;
 bool bFixedIP = false;
 
 #ifdef VIRTUAL_P1
-  char virtual_p1_ip[20] ="";
+char virtual_p1_ip[20] = "";
 #endif
 
 // connect NRG Monitor via ESPNOW
 time_t bPairingmode = 0;
 
-struct {
+struct
+{
   // uint32_t  reboots;
-  uint8_t   mac[6];
-  uint8_t   peers;      
+  uint8_t mac[6];
+  uint8_t peers;
 } Pref;
 
- struct { 
+struct
+{
   uint32_t lastUpdDay = 0;
   uint32_t t1;
   uint32_t t2;
   uint32_t t1r;
   uint32_t t2r;
-  uint32_t gas; //and heat
+  uint32_t gas; // and heat
   uint32_t water;
 } dataYesterday;
 
 TaskHandle_t tP1Reader; //  own proces for P1 reading
 
-enum  { PERIOD_UNKNOWN, HOURS, DAYS, MONTHS, YEARS };
-enum  E_ringfiletype {RINGHOURS, RINGDAYS, RINGMONTHS, RINGVOLTAGE};
-enum  SolarSource { ENPHASE, SOLAR_EDGE, SMA, OMNIKSOL };
+enum
+{
+  PERIOD_UNKNOWN,
+  HOURS,
+  DAYS,
+  MONTHS,
+  YEARS
+};
+enum E_ringfiletype
+{
+  RINGHOURS,
+  RINGDAYS,
+  RINGMONTHS,
+  RINGVOLTAGE
+};
+enum SolarSource
+{
+  ENPHASE,
+  SOLAR_EDGE,
+  SMA,
+  OMNIKSOL
+};
 
-//test
-struct RingRecord {
+// test
+struct RingRecord
+{
   char date[9];
   float values[6];
 };
 
 RingRecord RNGDayRec[15];
 
-void printRecordArray(const RingRecord* records, int slots, const char* label);
+void printRecordArray(const RingRecord *records, int slots, const char *label);
 bool loadRingfile(E_ringfiletype type);
 
-typedef struct {
-    char filename[17];
-    uint16_t slots;
-    unsigned int seconds;
-    int f_len;
-  } S_ringfile;
-
+typedef struct
+{
+  char filename[17];
+  uint16_t slots;
+  unsigned int seconds;
+  int f_len;
+} S_ringfile;
 
 #ifdef VOLTAGE_MON
-//Store over Voltage situations
-#define     VmaxSlots 100
+// Store over Voltage situations
+#define VmaxSlots 100
 //                       ts       ,L1 ,L2 ,L3 ,MaxV, Overß
-#define DATA_FORMAT_V    "%-12.12s,%4d,%4d,%4d,%3d,%c"
-#define DATA_RECLEN_V    34  //total length incl comma and new line
+#define DATA_FORMAT_V "%-12.12s,%4d,%4d,%4d,%3d,%c"
+#define DATA_RECLEN_V 34 // total length incl comma and new line
 
-//sMaxV consist of 12 + 3x2 + 2 = 20 bytes
-struct sMaxV {
-  char      ts[12];
-  uint16_t     L1;
-  uint16_t     L2;
-  uint16_t     L3;
-  uint16_t     MaxV;
-  char         Over;
-  } MaxVarr[VmaxSlots]; //50 x 20 = 1.000 bytes 
+// sMaxV consist of 12 + 3x2 + 2 = 20 bytes
+struct sMaxV
+{
+  char ts[12];
+  uint16_t L1;
+  uint16_t L2;
+  uint16_t L3;
+  uint16_t MaxV;
+  char Over;
+} MaxVarr[VmaxSlots]; // 50 x 20 = 1.000 bytes
 
-//Voltage
-uint16_t    MaxVoltage = 253;
-bool        bMaxV = false;
-uint8_t     Vcount = 0;
+// Voltage
+uint16_t MaxVoltage = 253;
+bool bMaxV = false;
+uint8_t Vcount = 0;
 
 #endif
 
-#define JSON_HEADER_LEN   23  //total length incl new line
-#define DATA_CLOSE        2   //length last row of datafile
-#define DATA_FORMAT      "{\"date\":\"%-8.8s\",\"values\":[%10.3f,%10.3f,%10.3f,%10.3f,%10.3f,%10.3f]}"
-#define DATA_RECLEN      98  //total length incl comma and new line
+#define JSON_HEADER_LEN 23 // total length incl new line
+#define DATA_CLOSE 2       // length last row of datafile
+#define DATA_FORMAT "{\"date\":\"%-8.8s\",\"values\":[%10.3f,%10.3f,%10.3f,%10.3f,%10.3f,%10.3f]}"
+#define DATA_RECLEN 98 // total length incl comma and new line
 
-const S_ringfile RingFiles[3] = {{"/RNGhours.json", 48+1,SECS_PER_HOUR, 4826}, {"/RNGdays.json",14+1,SECS_PER_DAY, (14+1)*(DATA_RECLEN)+DATA_CLOSE+JSON_HEADER_LEN-1 },{"/RNGmonths.json",24+1,0,2474}}; //+1 voor de vergelijking, laatste record wordt niet getoond 
+const S_ringfile RingFiles[3] = {{"/RNGhours.json", 48 + 1, SECS_PER_HOUR, 4826}, {"/RNGdays.json", 14 + 1, SECS_PER_DAY, (14 + 1) * (DATA_RECLEN) + DATA_CLOSE + JSON_HEADER_LEN - 1}, {"/RNGmonths.json", 24 + 1, 0, 2474}}; //+1 voor de vergelijking, laatste record wordt niet getoond
 
 // #include "Debug.h"
 
-  /**
-  * Define the DSMRdata we're interested in, as well as the DSMRdatastructure to
-  * hold the parsed DSMRdata. This list shows all supported fields, remove
-  * any fields you are not using from the below list to make the parsing
-  * and printing code smaller.
-  * Each template argument below results in a field of the same name.
-  * 
-  */
- 
+/**
+ * Define the DSMRdata we're interested in, as well as the DSMRdatastructure to
+ * hold the parsed DSMRdata. This list shows all supported fields, remove
+ * any fields you are not using from the below list to make the parsing
+ * and printing code smaller.
+ * Each template argument below results in a field of the same name.
+ *
+ */
+
 using MyData = ParsedData<
-  /* String */                 identification
-  /* String */                ,p1_version
-  /* String */                ,p1_version_be
-  /* FixedValue */            ,peak_pwr_last_q
-  /* TimestampedFixedValue */ ,highest_peak_pwr
-  /* String */                ,highest_peak_pwr_13mnd
-  /* String */                ,timestamp
-  /* String */                ,equipment_id
-  /* FixedValue */            ,energy_delivered_tariff1
-  /* FixedValue */            ,energy_delivered_tariff2
-  /* FixedValue */            ,energy_returned_tariff1
-  /* FixedValue */            ,energy_returned_tariff2
-  /* FixedValue */            ,energy_delivered_total
-  /* FixedValue */            ,energy_returned_total
-  /* String */                ,electricity_tariff
-  /* FixedValue */            ,power_delivered
-  /* FixedValue */            ,power_returned
-//  /* FixedValue */            ,electricity_threshold
-//  /* uint8_t */               ,electricity_switch_position
-//  /* uint32_t */              ,electricity_failures
-//  /* uint32_t */              ,electricity_long_failures
-//  /* String */                ,electricity_failure_log
-//  /* uint32_t */              ,electricity_sags_l1
-//  /* uint32_t */              ,electricity_sags_l2
-//  /* uint32_t */              ,electricity_sags_l3
-//  /* uint32_t */              ,electricity_swells_l1
-//  /* uint32_t */              ,electricity_swells_l2
-//  /* uint32_t */              ,electricity_swells_l3
-//  /* String */                ,message_short
-//  /* String */                ,message_long
-  /* FixedValue */            ,voltage_l1
-  /* FixedValue */            ,voltage_l2
-  /* FixedValue */            ,voltage_l3
-  /* FixedValue */            ,current_l1
-  /* FixedValue */            ,current_l2
-  /* FixedValue */            ,current_l3
-  /* FixedValue */            ,power_delivered_l1
-  /* FixedValue */            ,power_delivered_l2
-  /* FixedValue */            ,power_delivered_l3
-  /* FixedValue */            ,power_returned_l1
-  /* FixedValue */            ,power_returned_l2
-  /* FixedValue */            ,power_returned_l3
-  /* uint16_t */              ,mbus1_device_type
-  /* String */                ,mbus1_equipment_id_tc
-  /* String */                ,mbus1_equipment_id_ntc
-  /* uint8_t */               ,mbus1_valve_position
-  /* TimestampedFixedValue */ ,mbus1_delivered
-  /* TimestampedFixedValue */ ,mbus1_delivered_ntc
-  /* TimestampedFixedValue */ ,mbus1_delivered_dbl
-  /* uint16_t */              ,mbus2_device_type
-  /* String */                ,mbus2_equipment_id_tc
-  /* String */                ,mbus2_equipment_id_ntc
-  /* uint8_t */               ,mbus2_valve_position
-  /* TimestampedFixedValue */ ,mbus2_delivered
-  /* TimestampedFixedValue */ ,mbus2_delivered_ntc
-  /* TimestampedFixedValue */ ,mbus2_delivered_dbl
-  /* uint16_t */              ,mbus3_device_type
-  /* String */                ,mbus3_equipment_id_tc
-  /* String */                ,mbus3_equipment_id_ntc
-  /* uint8_t */               ,mbus3_valve_position
-  /* TimestampedFixedValue */ ,mbus3_delivered
-  /* TimestampedFixedValue */ ,mbus3_delivered_ntc
-  /* TimestampedFixedValue */ ,mbus3_delivered_dbl
-  /* uint16_t */              ,mbus4_device_type
-  /* String */                ,mbus4_equipment_id_tc
-  /* String */                ,mbus4_equipment_id_ntc
-  /* uint8_t */               ,mbus4_valve_position
-  /* TimestampedFixedValue */ ,mbus4_delivered
-  /* TimestampedFixedValue */ ,mbus4_delivered_ntc
-  /* TimestampedFixedValue */ ,mbus4_delivered_dbl
->;
+    /* String */ identification
+    /* String */,
+    p1_version
+    /* String */,
+    p1_version_be
+    /* FixedValue */,
+    peak_pwr_last_q
+    /* TimestampedFixedValue */,
+    highest_peak_pwr
+    /* String */,
+    highest_peak_pwr_13mnd
+    /* String */,
+    timestamp
+    /* String */,
+    equipment_id
+    /* FixedValue */,
+    energy_delivered_tariff1
+    /* FixedValue */,
+    energy_delivered_tariff2
+    /* FixedValue */,
+    energy_returned_tariff1
+    /* FixedValue */,
+    energy_returned_tariff2
+    /* FixedValue */,
+    energy_delivered_total
+    /* FixedValue */,
+    energy_returned_total
+    /* String */,
+    electricity_tariff
+    /* FixedValue */,
+    power_delivered
+    /* FixedValue */,
+    power_returned
+    //  /* FixedValue */            ,electricity_threshold
+    //  /* uint8_t */               ,electricity_switch_position
+    //  /* uint32_t */              ,electricity_failures
+    //  /* uint32_t */              ,electricity_long_failures
+    //  /* String */                ,electricity_failure_log
+    //  /* uint32_t */              ,electricity_sags_l1
+    //  /* uint32_t */              ,electricity_sags_l2
+    //  /* uint32_t */              ,electricity_sags_l3
+    //  /* uint32_t */              ,electricity_swells_l1
+    //  /* uint32_t */              ,electricity_swells_l2
+    //  /* uint32_t */              ,electricity_swells_l3
+    //  /* String */                ,message_short
+    //  /* String */                ,message_long
+    /* FixedValue */,
+    voltage_l1
+    /* FixedValue */,
+    voltage_l2
+    /* FixedValue */,
+    voltage_l3
+    /* FixedValue */,
+    current_l1
+    /* FixedValue */,
+    current_l2
+    /* FixedValue */,
+    current_l3
+    /* FixedValue */,
+    power_delivered_l1
+    /* FixedValue */,
+    power_delivered_l2
+    /* FixedValue */,
+    power_delivered_l3
+    /* FixedValue */,
+    power_returned_l1
+    /* FixedValue */,
+    power_returned_l2
+    /* FixedValue */,
+    power_returned_l3
+    /* uint16_t */,
+    mbus1_device_type
+    /* String */,
+    mbus1_equipment_id_tc
+    /* String */,
+    mbus1_equipment_id_ntc
+    /* uint8_t */,
+    mbus1_valve_position
+    /* TimestampedFixedValue */,
+    mbus1_delivered
+    /* TimestampedFixedValue */,
+    mbus1_delivered_ntc
+    /* TimestampedFixedValue */,
+    mbus1_delivered_dbl
+    /* uint16_t */,
+    mbus2_device_type
+    /* String */,
+    mbus2_equipment_id_tc
+    /* String */,
+    mbus2_equipment_id_ntc
+    /* uint8_t */,
+    mbus2_valve_position
+    /* TimestampedFixedValue */,
+    mbus2_delivered
+    /* TimestampedFixedValue */,
+    mbus2_delivered_ntc
+    /* TimestampedFixedValue */,
+    mbus2_delivered_dbl
+    /* uint16_t */,
+    mbus3_device_type
+    /* String */,
+    mbus3_equipment_id_tc
+    /* String */,
+    mbus3_equipment_id_ntc
+    /* uint8_t */,
+    mbus3_valve_position
+    /* TimestampedFixedValue */,
+    mbus3_delivered
+    /* TimestampedFixedValue */,
+    mbus3_delivered_ntc
+    /* TimestampedFixedValue */,
+    mbus3_delivered_dbl
+    /* uint16_t */,
+    mbus4_device_type
+    /* String */,
+    mbus4_equipment_id_tc
+    /* String */,
+    mbus4_equipment_id_ntc
+    /* uint8_t */,
+    mbus4_valve_position
+    /* TimestampedFixedValue */,
+    mbus4_delivered
+    /* TimestampedFixedValue */,
+    mbus4_delivered_ntc
+    /* TimestampedFixedValue */,
+    mbus4_delivered_dbl>;
 
 /*TODO espnow communicatie
 
@@ -280,11 +372,11 @@ struct Actuals {
   uint32_t  dailyW;//4
 };
 
-P1DataRec P1_Day[15]; //390 bytes 
-P1DataRec P1_Hour[25]; //650 bytes 
-P1DataRec P1_Month[49]; //1.274 bytes 
+P1DataRec P1_Day[15]; //390 bytes
+P1DataRec P1_Hour[25]; //650 bytes
+P1DataRec P1_Month[49]; //1.274 bytes
 */
-//P1DataRec P1_Profile[288]; //7.488
+// P1DataRec P1_Profile[288]; //7.488
 
 // const PROGMEM char *flashMode[]    { "QIO", "QOUT", "DIO", "DOUT", "Unknown" };
 
@@ -294,40 +386,42 @@ void delayms(unsigned long);
 void SetConfig();
 
 //===========================GLOBAL VAR'S======================================
-#ifndef MQTT_DISABLE 
-  #include <PubSubClient.h>           // MQTT client publish and subscribe functionality
+#ifndef MQTT_DISABLE
+#include <PubSubClient.h> // MQTT client publish and subscribe functionality
 #endif
-  WiFiClientSecure wifiClientTLS;
-  WiFiClient wifiClient;
-  PubSubClient MQTTclient(wifiClient);
+WiFiClientSecure wifiClientTLS;
+WiFiClient wifiClient;
+PubSubClient MQTTclient(wifiClient);
 
-//config + button
+// config + button
 int8_t IOWater = -1;
-bool UseRGB = false; 
-volatile unsigned long      Tpressed = 0;
+bool UseRGB = false;
+volatile unsigned long Tpressed = 0;
 volatile bool bButtonPressed = false;
 uint8_t SelMap = 0;
 uint32_t currentDay = 0;
 
-struct Status {
-   uint32_t           reboots;
-   uint32_t           sloterrors; //deprecated
-   char               timestamp[14];
-   volatile uint32_t  wtr_m3;
-   volatile uint16_t  wtr_l;
-   uint16_t           dev_type;   
-   bool               FirstUse;
-   E_eid_states       eid_state;
+struct Status
+{
+  uint32_t reboots;
+  uint32_t sloterrors; // deprecated
+  char timestamp[14];
+  volatile uint32_t wtr_m3;
+  volatile uint16_t wtr_l;
+  uint16_t dev_type;
+  bool FirstUse;
+  E_eid_states eid_state;
 } P1Status;
 
-struct stats{
+struct stats
+{
   uint32_t StartTime = 0;
   uint32_t U1piek = 0;
   uint32_t U2piek = 0;
   uint32_t U3piek = 0;
   uint32_t U1min = 0xFFFFFFFF;
   uint32_t U2min = 0xFFFFFFFF;
-  uint32_t U3min = 0xFFFFFFFF;  
+  uint32_t U3min = 0xFFFFFFFF;
   uint32_t TU1over = 0;
   uint32_t TU2over = 0;
   uint32_t TU3over = 0;
@@ -335,141 +429,147 @@ struct stats{
   uint32_t I2piek = 0;
   uint32_t I3piek = 0;
   uint32_t Psluip = 0xFFFFFFFF;
-  uint32_t P1max  = 0;
-  uint32_t P2max  = 0;
-  uint32_t P3max  = 0;
-  int32_t P1min   = 0xFFFFFFFF;
-  int32_t P2min   = 0xFFFFFFFF;
-  int32_t P3min   = 0xFFFFFFFF; 
+  uint32_t P1max = 0;
+  uint32_t P2max = 0;
+  uint32_t P3max = 0;
+  int32_t P1min = 0xFFFFFFFF;
+  int32_t P2min = 0xFFFFFFFF;
+  int32_t P3min = 0xFFFFFFFF;
 } P1Stats;
 
-MyData      DSMRdata;
-struct tm   tm;
-bool        DSTactive;
-time_t      actT, newT;
-char        actTimestamp[20] = "";
-char        newTimestamp[20] = "";
-uint32_t    telegramCount = 0, telegramErrors = 0, mqttCount = 0;
-bool        showRaw = false;
-bool        LEDenabled    = true;
+MyData DSMRdata;
+struct tm tm;
+bool DSTactive;
+time_t actT, newT;
+char actTimestamp[20] = "";
+char newTimestamp[20] = "";
+uint32_t telegramCount = 0, telegramErrors = 0, mqttCount = 0;
+bool showRaw = false;
+bool LEDenabled = true;
 // bool        DSMR_NL       = true;
-bool        bUseEtotals   = false;
-bool        EnableHAdiscovery = true;
-bool        bHideP1Log = false;
-char        bAuthUser[25]="", bAuthPW[25]="";
-bool        EnableHistory = true;
-bool        bPre40 = false;
-bool        bWarmteLink = false;
-bool        bActJsonMQTT = false;
-bool        bRawPort = false;
-bool        bLED_PRT = true;
-bool        P1Out = false;
-bool        bNewTelegramPostPower = false;
-bool        bV5meter = true;
-bool        bP1offline = true;
-time_t      last_telegram_t = 0;
-uint32_t    P1error_cnt_sequence = 0;
-int8_t      RxP1 = RXP1;
-int8_t      TxO1 = TXO1;
-int8_t      DTR_out = O1_DTR_IO;
-int8_t      LED_out = P1_LED;
-int8_t      statusled = LED;
+bool bUseEtotals = false;
+bool EnableHAdiscovery = true;
+bool bHideP1Log = false;
+char bAuthUser[25] = "", bAuthPW[25] = "";
+bool EnableHistory = true;
+bool bPre40 = false;
+bool bWarmteLink = false;
+bool bActJsonMQTT = false;
+bool bRawPort = false;
+bool bLED_PRT = true;
+bool P1Out = false;
+bool bNewTelegramPostPower = false;
+bool bV5meter = true;
+bool bP1offline = true;
+time_t last_telegram_t = 0;
+uint32_t P1error_cnt_sequence = 0;
+int8_t RxP1 = RXP1;
+int8_t TxO1 = TXO1;
+int8_t DTR_out = O1_DTR_IO;
+int8_t LED_out = P1_LED;
+int8_t statusled = LED;
 
-//bool        bWriteFiles = false;
+// bool        bWriteFiles = false;
 
-//vitals
-char      macStr[18] = { 0 };
-char      macID[13];
-char      DongleID[7];
+// vitals
+char macStr[18] = {0};
+char macID[13];
+char DongleID[7];
 
-String      CapTelegram;
-char        cMsg[150];
-String      lastReset           = "";
-bool        FSNotPopulated      = false;
-bool        Verbose1 = false, Verbose2 = false;
-uint32_t    unixTimestamp;
+String CapTelegram;
+char cMsg[150];
+String lastReset = "";
+bool FSNotPopulated = false;
+bool Verbose1 = false, Verbose2 = false;
+uint32_t unixTimestamp;
 
 IPAddress ipDNS, ipGateWay, ipSubnet;
-float     settingEDT1 = 0.1, settingEDT2 = 0.2, settingERT1 = 0.3, settingERT2 = 0.4, settingGDT = 0.5, settingWDT = 1.04;
-float     settingENBK = 29.62, settingGNBK = 17.30,settingWNBK = 55.05;
+float settingEDT1 = 0.1, settingEDT2 = 0.2, settingERT1 = 0.3, settingERT2 = 0.4, settingGDT = 0.5, settingWDT = 1.04;
+float settingENBK = 29.62, settingGNBK = 17.30, settingWNBK = 55.05;
 // uint8_t   settingSmHasFaseInfo = 1;
-char      settingHostname[32] = _DEFAULT_HOSTNAME;
-char      settingIndexPage[50] = _DEFAULT_HOMEPAGE;
-enum tNetwState { NW_NONE, NW_WIFI, NW_ETH, NW_ETH_LINK };
+char settingHostname[32] = _DEFAULT_HOSTNAME;
+char settingIndexPage[50] = _DEFAULT_HOMEPAGE;
+enum tNetwState
+{
+  NW_NONE,
+  NW_WIFI,
+  NW_ETH,
+  NW_ETH_LINK
+};
 uint8_t netw_state = NW_NONE;
-bool      FSmounted = false;
-bool      skipNetwork = false;
-bool      try_calc_i = true;
-//MQTT
+bool FSmounted = false;
+bool skipNetwork = false;
+bool try_calc_i = true;
+// MQTT
 #ifndef MQTTKB
-  uint32_t   settingMQTTinterval = 10;
-  char      settingMQTTbroker[101], settingMQTTuser[75], settingMQTTpasswd[160], settingMQTTtopTopic[50] = _DEFAULT_MQTT_TOPIC;
+uint32_t settingMQTTinterval = 10;
+char settingMQTTbroker[101], settingMQTTuser[75], settingMQTTpasswd[160], settingMQTTtopTopic[50] = _DEFAULT_MQTT_TOPIC;
 #else
-  #include "_mqtt_kb.h"
-  #define NO_HA_AUTODISCOVERY
-  #undef OTAURL
-  #define NO_STORAGE
-  #define OTAURL "http://ota.smart-stuff.nl/p1e/kb/"
-  uint32_t   settingMQTTinterval     = MQTT_INTERVAL;
-  char      settingMQTTbroker[101]  = MQTT_BROKER;
-  char      settingMQTTuser[75]     = MQTT_USER;
-  char      settingMQTTpasswd[160]  = MQTT_PASSWD;
-  char      settingMQTTtopTopic[50] = _DEFAULT_MQTT_TOPIC;
-#endif 
-
-uint32_t   settingMQTTbrokerPort = 1883;
-float     gasDelivered;
-String    gasDeliveredTimestamp;
-bool      UpdateRequested = false;
-byte      mbusGas = 0;
-byte      mbusWater = 0;
-float     waterDelivered;
-String    waterDeliveredTimestamp;
-String    mbusDeliveredTimestamp;
-String    smID;
-bool      StaticInfoSend = false;
-bool      bSendMQTT = false;
-bool      bMQTToverTLS = false;
-
-bool      hideMQTTsettings = false;
-bool      RemoveIndexAfterUpdate = true;
-bool      MacIDinToptopic = false;
-char      MQTopTopic[50+14] = "";
-
-//update
-char      BaseOTAurl[45] = OTAURL OTAURL_PREFIX;
-char      UpdateVersion[25] = "";
-bool      bUpdateSketch = true;
-bool      bAutoUpdate = false;
-
-//Post_Telegram
-#ifdef POST_TELEGRAM
-  time_t TelegramLastPost = 0;
-  uint16_t pt_port = 80;
-  uint16_t pt_interval = 60;
-  char pt_end_point[60];
+#include "_mqtt_kb.h"
+#define NO_HA_AUTODISCOVERY
+#undef OTAURL
+#define NO_STORAGE
+#define OTAURL "http://ota.smart-stuff.nl/p1e/kb/"
+uint32_t settingMQTTinterval = MQTT_INTERVAL;
+char settingMQTTbroker[101] = MQTT_BROKER;
+char settingMQTTuser[75] = MQTT_USER;
+char settingMQTTpasswd[160] = MQTT_PASSWD;
+char settingMQTTtopTopic[50] = _DEFAULT_MQTT_TOPIC;
 #endif
 
-//modbus
-int8_t mb_rx  = -1;
-int8_t mb_tx  = -1;
+uint32_t settingMQTTbrokerPort = 1883;
+float gasDelivered;
+String gasDeliveredTimestamp;
+bool UpdateRequested = false;
+byte mbusGas = 0;
+byte mbusWater = 0;
+float waterDelivered;
+String waterDeliveredTimestamp;
+String mbusDeliveredTimestamp;
+String smID;
+bool StaticInfoSend = false;
+bool bSendMQTT = false;
+bool bMQTToverTLS = false;
+
+bool hideMQTTsettings = false;
+bool RemoveIndexAfterUpdate = true;
+bool MacIDinToptopic = false;
+char MQTopTopic[50 + 14] = "";
+
+// update
+char BaseOTAurl[45] = OTAURL OTAURL_PREFIX;
+char UpdateVersion[25] = "";
+bool bUpdateSketch = true;
+bool bAutoUpdate = false;
+
+// Post_Telegram
+#ifdef POST_TELEGRAM
+time_t TelegramLastPost = 0;
+uint16_t pt_port = 80;
+uint16_t pt_interval = 60;
+char pt_end_point[60];
+#endif
+
+// modbus
+int8_t mb_rx = -1;
+int8_t mb_tx = -1;
 int8_t mb_rts = -1;
 
 #include "Debug.h"
 #include <ESPmDNS.h>
 #include "ShellyEmu.h"
 #include <Update.h>
-#include <WiFiManager.h>        // https://github.com/tzapu/WiFiManager
+#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 #include <HTTPClient.h>
-#include "NetTypes.h"        //included in #include "ESPTelnet.h"
+#include "NetTypes.h" //included in #include "ESPTelnet.h"
 #include "_Button.h"
 
 //===========================================================================================
-// setup timers 
-DECLARE_TIMER_SEC(synchrNTP,          30);
-DECLARE_TIMER_SEC(reconnectMQTTtimer,  MQTT_RECONNECT_DEFAULT_TIME); // try reconnecting cyclus timer
-DECLARE_TIMER_SEC(publishMQTTtimer,   60, SKIP_MISSED_TICKS); // interval time between MQTT messages  
-DECLARE_TIMER_MS(WaterTimer,          DEBOUNCETIMER);
-DECLARE_TIMER_SEC(StatusTimer,        10); //first time = 10 sec usual 30min (see loop)
+// setup timers
+DECLARE_TIMER_SEC(synchrNTP, 30);
+DECLARE_TIMER_SEC(reconnectMQTTtimer, MQTT_RECONNECT_DEFAULT_TIME); // try reconnecting cyclus timer
+DECLARE_TIMER_SEC(publishMQTTtimer, 60, SKIP_MISSED_TICKS);         // interval time between MQTT messages
+DECLARE_TIMER_MS(WaterTimer, DEBOUNCETIMER);
+DECLARE_TIMER_SEC(StatusTimer, 10); // first time = 10 sec usual 30min (see loop)
 
 #endif

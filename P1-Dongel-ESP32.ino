@@ -1,9 +1,9 @@
 /*
-***************************************************************************  
+***************************************************************************
 **  Program  : P1-Dongel-ESP32
 **  Copyright (c) 2025 Smartstuff / based on DSMR Api Willem Aandewiel
-**  TERMS OF USE: MIT License. See bottom of file.                                                            
-***************************************************************************      
+**  TERMS OF USE: MIT License. See bottom of file.
+***************************************************************************
 
 BACKLOG
 - detailgegevens voor korte tijd opslaan in werkgeheugen (eens per 10s voor bv 1 uur)
@@ -13,7 +13,7 @@ BACKLOG
 - SSE of websockets voor de communicatie tussen client / dongle ( P. van Bennekom )
 - 90 dagen opslaan van uur gegevens ( R de Grijs )
 - Interface HomeKit ivm triggeren op basis van energieverbruik/teruglevering (Thijs v Z)
-- grafische weergave als standaardoptie weergave en cijferlijsten als tweede keuze. Nu is het andersom. 
+- grafische weergave als standaardoptie weergave en cijferlijsten als tweede keuze. Nu is het andersom.
 - Consistentie tijd-assen, links oud, rechts nieuw
   - in Actueel staat de laatste meting rechts en de oudste meting links
   - in de uurstaat loopt de tijd van rechts (oudst) naar links (laatste uurmeting)
@@ -23,7 +23,7 @@ BACKLOG
 - front-end: issue Stroom ( terug + afname bij 3 fase wordt opgeteled ipv - I voor teruglevering )
 - Rob v D: 'Actueel' --> 'Grafisch' staat gasverbruik (blauw) vermeld, terwijl ik geen gas heb (verbruik is dan ook nul). Waterverbruik zie ik daar niet. In de uur/dag/maand overzichten zie ik wel water en geen gas.
 - RNGhours files vergroten (nu 48h -> 336h) (Broes)
-- teruglevering dashboard verkeerde verhoudingen ( Pieter ) 
+- teruglevering dashboard verkeerde verhoudingen ( Pieter )
 - RNGDays 31 days
 - eigen NTP kunnen opgeven of juist niet (stopt pollen)
 - detect and repair issues RNG files
@@ -33,7 +33,7 @@ BACKLOG
     - detail P per fase afgelopen uur (sample eens per 10s)
 - kwartierpiek historie opnemen (wanneer nieuwe piek ontstaat)
 - dynamische prijzen inl
-- improvement: modbus in own process = non-blocking 
+- improvement: modbus in own process = non-blocking
 - check and repair rng files on startup
 - hostname aanpassen met laatste 3 segmenten mac-adres
 - Huawei FusionSolar integratie ( Francis )
@@ -77,7 +77,7 @@ Arduino-IDE settings for P1 Dongle hardware ESP32:
   - CorenDebug Level: "None"
   - Flash Frequency: "80MHz"
   - CPU Frequency: "160MHz"
-  - Upload Speed: "961600"                                                                                
+  - Upload Speed: "961600"
   - Port: <select correct port>
 
 5.3.1
@@ -108,63 +108,75 @@ x refactor frontend settings
 // #define INSIGHTS
 // #define XTRA_LOG
 
-//PROFILES -> NO PROFILE = WiFi Dongle 
-#define ULTRA         //ultra (mini) dongle
-// #define ETHERNET      //ethernet dongle
-// #define ETH_P1EP          //ethernet pro+ dongle
-// #define NRG_DONGLE 
-// #define DEVTYPE_H2OV2 // P1 Dongle Pro with h2o and p1 out
+// PROFILES -> NO PROFILE = WiFi Dongle
+//  #define ULTRA         //ultra (mini) dongle
+//  #define ETHERNET      //ethernet dongle
+#define ETH_P1EP // ethernet pro+ dongle
+// #define NRG_DONGLE
+//  #define DEVTYPE_H2OV2 // P1 Dongle Pro with h2o and p1 out
 
-//SPECIAL
-// #define __Az__
+// SPECIAL
+//  #define __Az__
 
-//FEATURES
-// #define DEV_PAIRING
+// FEATURES
+//  #define DEV_PAIRING
 #define MBUS
-//#define MQTT_DISABLE
-//#define NO_STORAGE
-//#define VOLTAGE_MON
-// #define NO_HA_AUTODISCOVERY
-//#define POST_TELEGRAM
-// #define MQTTKB
-// #define MB_RTU
+// #define MQTT_DISABLE
+// #define NO_STORAGE
+// #define VOLTAGE_MON
+//  #define NO_HA_AUTODISCOVERY
+// #define POST_TELEGRAM
+//  #define MQTTKB
+//  #define MB_RTU
 #define ESPNOW
 // #define SHELLY_EMU
 // #define USB_CONFIG
 // #define POST_POWERCH
+// #define REMOTE_PUSH   // kwartierpiek push notificaties (zie RemotePush.ino en _secrets/remote_push.h)
+
+// #define EID_SECRETS // zorgt dat _secrets/energyid.h wordt ingelezen
+#define REMOTE_PUSH // kwartierpiek push notificaties (zie RemotePush.ino en _secrets/remote_push.h)
 
 #include "DSMRloggerAPI.h"
 #include <esp_task_wdt.h>
 
-void setup() 
+void setup()
 {
   DebugBegin(115200);
   uint16_t Freq = getCpuFrequencyMhz();
-  setCpuFrequencyMhz(80); //lower power mode
-  USBPrintf( "\n\n------> BOOTING %s %s ( %s %s ) <------\n\n", _DEFAULT_HOSTNAME, _VERSION_ONLY, __DATE__, __TIME__ ); 
-  Debugf("Original cpu speed: %d\n",Freq);
+  setCpuFrequencyMhz(80); // lower power mode
+  USBPrintf("\n\n------> BOOTING %s %s ( %s %s ) <------\n\n", _DEFAULT_HOSTNAME, _VERSION_ONLY, __DATE__, __TIME__);
+  Debugf("Original cpu speed: %d\n", Freq);
   SetupWDT();
   SetupButton();
   GetMacAddress();
 
-  P1StatusBegin(); //leest laatste opgeslagen status & rebootcounter + 1
+  P1StatusBegin(); // leest laatste opgeslagen status & rebootcounter + 1
   SetConfig();
   WDT_FEED();
   lastReset = getResetReason();
-  DebugT(F("Last reset reason: ")); Debugln(lastReset);
+  DebugT(F("Last reset reason: "));
+  Debugln(lastReset);
   DebugFlush();
-//================ File System =====================================
-  if ( LittleFS.begin(true) ) { DebugTln(F("FS Mount OK\r")); FSmounted = true;  } 
-  else DebugTln(F("!!!! FS Mount ERROR\r"));   // Serious problem with File System 
+  //================ File System =====================================
+  if (LittleFS.begin(true))
+  {
+    DebugTln(F("FS Mount OK\r"));
+    FSmounted = true;
+  }
+  else
+    DebugTln(F("!!!! FS Mount ERROR\r")); // Serious problem with File System
   WDT_FEED();
-//================ Status update ===================================
+  //================ Status update ===================================
   actT = epoch(actTimestamp, strlen(actTimestamp), true); // set the time to actTimestamp!
   P1StatusWrite();
-  LogFile("",false); // write reboot status to file
-  if (!LittleFS.exists(SETTINGS_FILE)) writeSettings(); //otherwise the dongle crashes some times on the first boot
-  else readSettings(true);
+  LogFile("", false); // write reboot status to file
+  if (!LittleFS.exists(SETTINGS_FILE))
+    writeSettings(); // otherwise the dongle crashes some times on the first boot
+  else
+    readSettings(true);
   WDT_FEED();
-//=============scan, repair and convert RNG files ==================
+  //=============scan, repair and convert RNG files ==================
   // CheckRingFile(RINGDAYS);
   // loadRingfile(RINGDAYS);
   // printRecordArray(RNGDayRec, RingFiles[RINGDAYS].slots, "RINGDAYS");
@@ -173,76 +185,85 @@ void setup()
   // patchJsonFile_Add7thValue(RINGMONTHS);
   // patchJsonFile_Add7thValue(RINGHOURS);
   // convertRingfileWithSlotExpansion(RINGDAYS,32);
-//=============start Networkstuff ==================================
+  //=============start Networkstuff ==================================
   USBconfigBegin();
   startNetwork();
   WDT_FEED();
-  PostMacIP(); //post mac en ip
+  PostMacIP(); // post mac en ip
   yield();
-#ifdef INSIGHTS  
-  if ( Insights.begin(INSIGHTS_KEY) ) Debugf("ESP Insights enabled Node ID %s\n", Insights.nodeID());
-#endif  
+#ifdef INSIGHTS
+  if (Insights.begin(INSIGHTS_KEY))
+    Debugf("ESP Insights enabled Node ID %s\n", Insights.nodeID());
+#endif
   WDT_FEED();
   startTelnet();
   startMDNS(settingHostname);
   startNTP();
   WDT_FEED();
-//================ Check necessary files ============================
-  if ( !skipNetwork ) {
-  if (!DSMRfileExist(settingIndexPage, false) ) {
-    DebugTln(F("Oeps! Index file not pressent, try to download it!\r"));
-    GetFile(settingIndexPage, PATH_DATA_FILES); //download file from cdn
-    if (!DSMRfileExist(settingIndexPage, false) ) {
+  //================ Check necessary files ============================
+  if (!skipNetwork)
+  {
+    if (!DSMRfileExist(settingIndexPage, false))
+    {
       DebugTln(F("Oeps! Index file not pressent, try to download it!\r"));
-      GetFile(settingIndexPage, URL_INDEX_FALLBACK);
-    }
-    if (!DSMRfileExist(settingIndexPage, false) ) { //check again
-      DebugTln(F("Index file still not pressent!\r"));
-      FSNotPopulated = true;
+      GetFile(settingIndexPage, PATH_DATA_FILES); // download file from cdn
+      if (!DSMRfileExist(settingIndexPage, false))
+      {
+        DebugTln(F("Oeps! Index file not pressent, try to download it!\r"));
+        GetFile(settingIndexPage, URL_INDEX_FALLBACK);
       }
-  }
-  WDT_FEED();
-  if (!DSMRfileExist("/Frontend.json", false) ) {
-    DebugTln(F("Frontend.json not pressent, try to download it!"));
-    GetFile("/Frontend.json", PATH_DATA_FILES);
-  }
-  
-  setupFSexplorer();
+      if (!DSMRfileExist(settingIndexPage, false))
+      { // check again
+        DebugTln(F("Index file still not pressent!\r"));
+        FSNotPopulated = true;
+      }
+    }
+    WDT_FEED();
+    if (!DSMRfileExist("/Frontend.json", false))
+    {
+      DebugTln(F("Frontend.json not pressent, try to download it!"));
+      GetFile("/Frontend.json", PATH_DATA_FILES);
+    }
+
+    setupFSexplorer();
   } //! skipNetwork
   WDT_FEED();
   esp_register_shutdown_handler(ShutDownHandler);
 
   setupWater();
   WDT_FEED();
-  if (EnableHistory) CheckRingExists();
+  if (EnableHistory)
+    CheckRingExists();
   SetupNetSwitch();
 
-//================ Start Slimme Meter ===============================
+  //================ Start Slimme Meter ===============================
 
 #ifdef MBUS
   mbusSetup();
   SetupMB_RTU();
-#endif  
+#endif
   ReadSolarConfigs();
   ReadAccuConfig();
   delay(500);
-  setCpuFrequencyMhz(Freq); //restore original clockspeed
+  setCpuFrequencyMhz(Freq); // restore original clockspeed
 
   StartP1Task();
   StartMqttTask();
   EIDStart();
   ShellyEmuBegin();
   // setupWS();
-  
-  DebugTf("Startup complete! actTimestamp[%s]\r\n", actTimestamp);  
+
+  DebugTf("Startup complete! actTimestamp[%s]\r\n", actTimestamp);
   StartESPNOW();
   StartPowerCH();
 } // setup()
 
-void loop () { 
+void loop()
+{
   esp_task_wdt_reset();
-  httpServer.handleClient();      
-  if ( DUE(StatusTimer) && (telegramCount > 2) ) { 
+  httpServer.handleClient();
+  if (DUE(StatusTimer) && (telegramCount > 2))
+  {
     P1StatusWrite();
     MQTTSentStaticInfo();
     CHANGE_INTERVAL_MIN(StatusTimer, 30);
@@ -250,8 +271,9 @@ void loop () {
   handleKeyInput();
   handleRemoteUpdate();
   handleWater();
-  handleEnergyID();  
+  handleEnergyID();
   PostTelegram();
+  CheckRemotePeakPush();
   GetSolarDataN();
   handleVirtualP1();
   PrintHWMark(2);
